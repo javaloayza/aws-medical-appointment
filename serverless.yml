@@ -1,0 +1,244 @@
+service: aws-medical-appointment
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  memorySize: 256
+  timeout: 30
+  environment:
+    STAGE: ${self:provider.stage}
+    REGION: ${self:provider.region}
+    APPOINTMENTS_TABLE: ${self:service}-appointments-${self:provider.stage}
+    SNS_TOPIC_ARN: !Ref AppointmentTopic
+    SQS_PE_URL: !Ref AppointmentQueuePE
+    SQS_CL_URL: !Ref AppointmentQueueCL
+    SQS_CONFIRMATION_URL: !Ref ConfirmationQueue
+    EVENTBRIDGE_BUS_NAME: ${self:service}-eventbus-${self:provider.stage}
+    RDS_ENDPOINT: ${env:RDS_ENDPOINT}
+    RDS_PORT: ${env:RDS_PORT, '5432'}
+    RDS_USERNAME: ${env:RDS_USERNAME}
+    RDS_PASSWORD: ${env:RDS_PASSWORD}
+    DB_NAME_PE: ${env:DB_NAME_PE, 'appointments_pe'}
+    DB_NAME_CL: ${env:DB_NAME_CL, 'appointments_cl'}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+          Resource:
+            - !GetAtt AppointmentsTable.Arn
+            - !Sub "${AppointmentsTable.Arn}/index/*"
+        - Effect: Allow
+          Action:
+            - sns:Publish
+          Resource: !Ref AppointmentTopic
+        - Effect: Allow
+          Action:
+            - sqs:SendMessage
+            - sqs:ReceiveMessage
+            - sqs:DeleteMessage
+            - sqs:GetQueueAttributes
+          Resource:
+            - !GetAtt AppointmentQueuePE.Arn
+            - !GetAtt AppointmentQueueCL.Arn
+            - !GetAtt ConfirmationQueue.Arn
+        - Effect: Allow
+          Action:
+            - events:PutEvents
+          Resource: !GetAtt EventBridge.Arn
+
+plugins:
+  - serverless-plugin-typescript
+  - serverless-offline
+
+functions:
+  appointment:
+    handler: src/handlers/appointment.handler
+    events:
+      - http:
+          path: /appointments
+          method: post
+          cors: true
+      - http:
+          path: /appointments/{insuredId}
+          method: get
+          cors: true
+      - sqs:
+          arn: !GetAtt ConfirmationQueue.Arn
+          batchSize: 1
+
+  appointmentPE:
+    handler: src/handlers/appointment-pe.handler
+    events:
+      - sqs:
+          arn: !GetAtt AppointmentQueuePE.Arn
+          batchSize: 1
+
+  appointmentCL:
+    handler: src/handlers/appointment-cl.handler
+    events:
+      - sqs:
+          arn: !GetAtt AppointmentQueueCL.Arn
+          batchSize: 1
+
+resources:
+  Resources:
+    # DynamoDB Table
+    AppointmentsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.APPOINTMENTS_TABLE}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: appointmentId
+            AttributeType: S
+          - AttributeName: insuredId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: appointmentId
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: InsuredIdIndex
+            KeySchema:
+              - AttributeName: insuredId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+
+    # SNS Topic
+    AppointmentTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ${self:service}-appointments-${self:provider.stage}
+
+    # SQS Queues
+    AppointmentQueuePE:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:service}-sqs-pe-${self:provider.stage}
+        VisibilityTimeoutSeconds: 60
+        MessageRetentionPeriod: 1209600 # 14 days
+
+    AppointmentQueueCL:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:service}-sqs-cl-${self:provider.stage}
+        VisibilityTimeoutSeconds: 60
+        MessageRetentionPeriod: 1209600 # 14 days
+
+    ConfirmationQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:service}-sqs-confirmation-${self:provider.stage}
+        VisibilityTimeoutSeconds: 60
+        MessageRetentionPeriod: 1209600 # 14 days
+
+    # SNS Subscriptions with filters
+    SubscriptionPE:
+      Type: AWS::SNS::Subscription
+      Properties:
+        TopicArn: !Ref AppointmentTopic
+        Protocol: sqs
+        Endpoint: !GetAtt AppointmentQueuePE.Arn
+        FilterPolicy:
+          countryISO:
+            - "PE"
+
+    SubscriptionCL:
+      Type: AWS::SNS::Subscription
+      Properties:
+        TopicArn: !Ref AppointmentTopic
+        Protocol: sqs
+        Endpoint: !GetAtt AppointmentQueueCL.Arn
+        FilterPolicy:
+          countryISO:
+            - "CL"
+
+    # SQS Queue Policies
+    AppointmentQueuePEPolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        Queues:
+          - !Ref AppointmentQueuePE
+        PolicyDocument:
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: sns.amazonaws.com
+              Action: sqs:SendMessage
+              Resource: !GetAtt AppointmentQueuePE.Arn
+              Condition:
+                ArnEquals:
+                  aws:SourceArn: !Ref AppointmentTopic
+
+    AppointmentQueueCLPolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        Queues:
+          - !Ref AppointmentQueueCL
+        PolicyDocument:
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: sns.amazonaws.com
+              Action: sqs:SendMessage
+              Resource: !GetAtt AppointmentQueueCL.Arn
+              Condition:
+                ArnEquals:
+                  aws:SourceArn: !Ref AppointmentTopic
+
+    # EventBridge Custom Bus
+    EventBridge:
+      Type: AWS::Events::EventBus
+      Properties:
+        Name: ${self:provider.environment.EVENTBRIDGE_BUS_NAME}
+
+    # EventBridge Rule
+    ConfirmationRule:
+      Type: AWS::Events::Rule
+      Properties:
+        EventBusName: !Ref EventBridge
+        EventPattern:
+          source:
+            - "appointment.processor"
+          detail-type:
+            - "Appointment Processed"
+        State: ENABLED
+        Targets:
+          - Arn: !GetAtt ConfirmationQueue.Arn
+            Id: "ConfirmationTarget"
+
+    # EventBridge to SQS Permission
+    EventBridgeToSQSPolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        Queues:
+          - !Ref ConfirmationQueue
+        PolicyDocument:
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: events.amazonaws.com
+              Action: sqs:SendMessage
+              Resource: !GetAtt ConfirmationQueue.Arn
+
+  Outputs:
+    AppointmentsTableName:
+      Description: DynamoDB table name for appointments
+      Value: !Ref AppointmentsTable
+    AppointmentTopicArn:
+      Description: SNS topic ARN for appointments
+      Value: !Ref AppointmentTopic
+    EventBridgeBusArn:
+      Description: EventBridge custom bus ARN
+      Value: !GetAtt EventBridge.Arn
