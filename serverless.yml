@@ -77,6 +77,18 @@ functions:
           arn: !GetAtt ConfirmationQueue.Arn
           batchSize: 1
 
+  docs:
+    handler: src/handlers/docs.handler
+    events:
+      - http:
+          path: /docs
+          method: get
+          cors: true
+      - http:
+          path: /docs/{proxy+}
+          method: get
+          cors: true
+
   appointmentPE:
     handler: src/handlers/appointment-pe.handler
     events:

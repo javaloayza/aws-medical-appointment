@@ -25,10 +25,9 @@ module.exports = {
       statements: 80
     }
   },
-  moduleNameMapping: {
+  moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1'
   },
-  setupFilesAfterEnv: ['<rootDir>/src/__tests__/setup.ts'],
   clearMocks: true,
   restoreMocks: true
 };
