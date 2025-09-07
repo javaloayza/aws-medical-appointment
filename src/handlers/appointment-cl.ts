@@ -1,7 +1,7 @@
 import { SQSEvent } from 'aws-lambda';
-import { AppointmentService } from '@/services';
-import { repositoryFactory } from '@/repositories';
-import { SNSMessage } from '@/types';
+import { AppointmentService } from '../services';
+import { repositoryFactory } from '../repositories';
+import { SNSMessage } from '../types';
 
 // Initialize service with factory
 const appointmentService = new AppointmentService(repositoryFactory);
@@ -12,8 +12,9 @@ export const handler = async (event: SQSEvent): Promise<void> => {
 
   for (const record of event.Records) {
     try {
-      // Parse SNS message from SQS
-      const snsMessage: SNSMessage = JSON.parse(record.body);
+      // Parse SNS message from SQS (SNS wraps the actual message)
+      const sqsBody = JSON.parse(record.body);
+      const snsMessage: SNSMessage = JSON.parse(sqsBody.Message);
       
       console.log('Processing CL appointment:', snsMessage.appointmentId);
 

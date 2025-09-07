@@ -1,7 +1,8 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult, SQSEvent } from 'aws-lambda';
-import { AppointmentService } from '@/services';
-import { repositoryFactory } from '@/repositories';
-import { AppointmentRequest, EventBridgeEvent, LambdaResponse } from '@/types';
+import { AppointmentService } from '../services';
+import { repositoryFactory } from '../repositories';
+import { AppointmentRequest } from '../types';
+import { validateAppointmentRequest, validateInsuredId } from '../utils/validation';
 
 // Initialize service with factory
 const appointmentService = new AppointmentService(repositoryFactory);
@@ -81,20 +82,13 @@ async function handleCreateAppointment(
   try {
     const request: AppointmentRequest = JSON.parse(event.body);
     
-    // Basic validation
-    if (!request.insuredId || !request.scheduleId || !request.countryISO) {
+    // Joi validation
+    const validation = validateAppointmentRequest(request);
+    if (!validation.isValid) {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ message: 'Missing required fields: insuredId, scheduleId, countryISO' })
-      };
-    }
-
-    if (!['PE', 'CL'].includes(request.countryISO)) {
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ message: 'countryISO must be PE or CL' })
+        body: JSON.stringify({ message: validation.error })
       };
     }
 
@@ -130,14 +124,14 @@ async function handleGetAppointments(
   headers: Record<string, string>
 ): Promise<APIGatewayProxyResult> {
   
-  const insuredId = event.pathParameters!.insuredId;
+  const insuredId = event.pathParameters!.insuredId!;
   
   // Validate insured ID format (5 digits)
-  if (!/^\d{5}$/.test(insuredId)) {
+  if (!validateInsuredId(insuredId)) {
     return {
       statusCode: 400,
       headers,
-      body: JSON.stringify({ message: 'insuredId must be 5 digits' })
+      body: JSON.stringify({ message: 'insuredId must be exactly 5 digits' })
     };
   }
 
@@ -169,16 +163,17 @@ async function handleConfirmations(event: SQSEvent): Promise<void> {
   for (const record of event.Records) {
     try {
       // Parse EventBridge event from SQS message
-      const eventBridgeEvent: EventBridgeEvent = JSON.parse(record.body);
+      const sqsBody = JSON.parse(record.body!);
+      const eventData = sqsBody.detail || sqsBody;
       
       // Confirm appointment via service
-      const result = await appointmentService.confirmAppointment(eventBridgeEvent);
+      const result = await appointmentService.confirmAppointment(eventData);
       
       if (!result.success) {
         console.error('Failed to confirm appointment:', result.error);
         // In production, you might want to send to DLQ
       } else {
-        console.log('Appointment confirmed:', eventBridgeEvent.appointmentId);
+        console.log('Appointment confirmed:', eventData.appointmentId);
       }
 
     } catch (error) {

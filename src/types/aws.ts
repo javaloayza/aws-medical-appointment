@@ -12,19 +12,8 @@ export interface AppointmentEvent extends APIGatewayProxyEvent {
   };
 }
 
-export interface SQSAppointmentEvent extends SQSEvent {
-  Records: Array<{
-    messageId: string;
-    receiptHandle: string;
-    body: string;
-    attributes: Record<string, string>;
-    messageAttributes: Record<string, any>;
-    md5OfBody: string;
-    eventSource: string;
-    eventSourceARN: string;
-    awsRegion: string;
-  }>;
-}
+// SQS Event type alias for cleaner imports
+export type SQSAppointmentEvent = SQSEvent;
 
 export interface DatabaseConfig {
   host: string;

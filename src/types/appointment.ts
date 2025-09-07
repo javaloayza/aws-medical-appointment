@@ -11,7 +11,7 @@ export interface AppointmentResponse {
   countryISO: 'PE' | 'CL';
   status: AppointmentStatus;
   createdAt: string;
-  updatedAt?: string;
+  updatedAt?: string | undefined;
 }
 
 export type AppointmentStatus = 'pending' | 'completed' | 'failed';

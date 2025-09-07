@@ -1,6 +1,6 @@
-import { Pool, PoolClient } from 'pg';
+import { Pool } from 'pg';
 import { IPostgreSQLAppointmentRepository } from './interfaces/appointment.repository';
-import { PostgreSQLAppointment, AppointmentStatus, DatabaseConfig } from '@/types';
+import { PostgreSQLAppointment, AppointmentStatus, DatabaseConfig } from '../types';
 
 // PostgreSQL repository implementation - permanent appointment storage
 export class PostgreSQLAppointmentRepository implements IPostgreSQLAppointmentRepository {
@@ -16,6 +16,9 @@ export class PostgreSQLAppointmentRepository implements IPostgreSQLAppointmentRe
       max: 10, // maximum number of connections
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 2000,
+      ssl: {
+        rejectUnauthorized: false // For RDS
+      }
     });
   }
 

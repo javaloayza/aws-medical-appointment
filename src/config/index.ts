@@ -1,4 +1,4 @@
-import { DatabaseConfig, DynamoDBConfig, SNSConfig, EventBridgeConfig } from '@/types';
+import { DatabaseConfig, DynamoDBConfig, SNSConfig, EventBridgeConfig } from '../types';
 
 // DynamoDB configuration - appointment states storage
 export const dynamoDBConfig: DynamoDBConfig = {

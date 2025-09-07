@@ -1,17 +1,17 @@
 service: aws-medical-appointment
 
 frameworkVersion: '3'
+useDotenv: true
 
 provider:
   name: aws
   runtime: nodejs18.x
-  region: ${opt:region, 'us-east-1'}
   stage: ${opt:stage, 'dev'}
   memorySize: 256
   timeout: 30
   environment:
     STAGE: ${self:provider.stage}
-    REGION: ${self:provider.region}
+    REGION: us-east-1
     APPOINTMENTS_TABLE: ${self:service}-appointments-${self:provider.stage}
     SNS_TOPIC_ARN: !Ref AppointmentTopic
     SQS_PE_URL: !Ref AppointmentQueuePE
@@ -126,21 +126,21 @@ resources:
       Type: AWS::SQS::Queue
       Properties:
         QueueName: ${self:service}-sqs-pe-${self:provider.stage}
-        VisibilityTimeoutSeconds: 60
+        VisibilityTimeout: 60
         MessageRetentionPeriod: 1209600 # 14 days
 
     AppointmentQueueCL:
       Type: AWS::SQS::Queue
       Properties:
         QueueName: ${self:service}-sqs-cl-${self:provider.stage}
-        VisibilityTimeoutSeconds: 60
+        VisibilityTimeout: 60
         MessageRetentionPeriod: 1209600 # 14 days
 
     ConfirmationQueue:
       Type: AWS::SQS::Queue
       Properties:
         QueueName: ${self:service}-sqs-confirmation-${self:provider.stage}
-        VisibilityTimeoutSeconds: 60
+        VisibilityTimeout: 60
         MessageRetentionPeriod: 1209600 # 14 days
 
     # SNS Subscriptions with filters

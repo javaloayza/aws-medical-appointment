@@ -10,13 +10,11 @@ import {
   EventBridgeEvent,
   CountryISO,
   ServiceResponse 
-} from '@/types';
+} from '../types';
 import { 
-  IDynamoDBAppointmentRepository, 
-  IPostgreSQLAppointmentRepository,
   IRepositoryFactory 
-} from '@/repositories';
-import { snsConfig, eventBridgeConfig } from '@/config';
+} from '../repositories';
+import { snsConfig, eventBridgeConfig } from '../config';
 
 // Core appointment service - handles business logic and orchestrates repositories
 export class AppointmentService {
@@ -160,7 +158,7 @@ export class AppointmentService {
         countryISO: appointment.countryISO,
         status: appointment.status,
         createdAt: appointment.createdAt,
-        updatedAt: appointment.updatedAt
+        updatedAt: appointment.updatedAt || undefined
       }));
 
       return { success: true, data: response };

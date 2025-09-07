@@ -1,4 +1,4 @@
-import { DynamoDBAppointment, PostgreSQLAppointment, AppointmentStatus } from '@/types';
+import { DynamoDBAppointment, PostgreSQLAppointment, AppointmentStatus } from '../../types';
 
 // Repository interface for appointment data access - Repository Pattern
 export interface IAppointmentRepository {

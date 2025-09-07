@@ -1,8 +1,8 @@
 import { IDynamoDBAppointmentRepository, IPostgreSQLAppointmentRepository } from '../interfaces/appointment.repository';
 import { DynamoDBAppointmentRepository } from '../dynamodb.repository';
 import { PostgreSQLAppointmentRepository } from '../postgresql.repository';
-import { dynamoDBConfig, getPostgresConfig } from '@/config';
-import { CountryISO } from '@/types';
+import { dynamoDBConfig, getPostgresConfig } from '../../config';
+import { CountryISO } from '../../types';
 
 // Factory Pattern interface for repository creation
 export interface IRepositoryFactory {

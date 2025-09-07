@@ -1,7 +1,7 @@
 import { DynamoDBClient, PutItemCommand, QueryCommand, GetItemCommand, UpdateItemCommand } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { IDynamoDBAppointmentRepository } from './interfaces/appointment.repository';
-import { DynamoDBAppointment, AppointmentStatus, DynamoDBConfig } from '@/types';
+import { DynamoDBAppointment, AppointmentStatus, DynamoDBConfig } from '../types';
 
 // DynamoDB repository implementation - manages appointment states
 export class DynamoDBAppointmentRepository implements IDynamoDBAppointmentRepository {
@@ -75,6 +75,8 @@ export class DynamoDBAppointmentRepository implements IDynamoDBAppointmentReposi
       ExpressionAttributeValues: marshall({
         ':status': status,
         ':updatedAt': new Date().toISOString()
+      }, {
+        removeUndefinedValues: true
       })
     };
 
