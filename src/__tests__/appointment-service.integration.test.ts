@@ -13,7 +13,8 @@ const mockDynamoDBRepository = {
   save: jest.fn(),
   findByInsuredId: jest.fn(),
   findById: jest.fn(),
-  updateStatus: jest.fn()
+  updateStatus: jest.fn(),
+  findByScheduleId: jest.fn()
 };
 
 const mockPostgreSQLRepository = {
@@ -62,6 +63,9 @@ describe('AppointmentService Integration Tests', () => {
     // Setup default mock responses
     mockSNSPublish.mockResolvedValue({ MessageId: 'test-message-id' });
     mockEventBridgePutEvents.mockResolvedValue({ Entries: [{ EventId: 'test-event-id' }] });
+    
+    // Setup findByScheduleId to return null (no duplicate found) by default
+    mockDynamoDBRepository.findByScheduleId.mockResolvedValue(null);
   });
 
   describe('createAppointment - Step 1: DynamoDB pending + SNS publish', () => {

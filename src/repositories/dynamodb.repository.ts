@@ -1,4 +1,4 @@
-import { DynamoDBClient, PutItemCommand, QueryCommand, GetItemCommand, UpdateItemCommand } from '@aws-sdk/client-dynamodb';
+import { DynamoDBClient, PutItemCommand, QueryCommand, GetItemCommand, UpdateItemCommand, ScanCommand } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { IDynamoDBAppointmentRepository } from './interfaces/appointment.repository';
 import { DynamoDBAppointment, AppointmentStatus, DynamoDBConfig } from '../types';
@@ -81,5 +81,30 @@ export class DynamoDBAppointmentRepository implements IDynamoDBAppointmentReposi
     };
 
     await this.client.send(new UpdateItemCommand(params));
+  }
+
+  // Find appointment by schedule ID to prevent duplicates
+  async findByScheduleId(scheduleId: number, countryISO: string): Promise<DynamoDBAppointment | null> {
+    const params = {
+      TableName: this.tableName,
+      FilterExpression: 'scheduleId = :scheduleId AND countryISO = :countryISO AND #status IN (:pending, :completed)',
+      ExpressionAttributeNames: {
+        '#status': 'status'
+      },
+      ExpressionAttributeValues: marshall({
+        ':scheduleId': scheduleId,
+        ':countryISO': countryISO,
+        ':pending': 'pending',
+        ':completed': 'completed'
+      })
+    };
+
+    const result = await this.client.send(new ScanCommand(params));
+    
+    if (!result.Items || result.Items.length === 0) {
+      return null;
+    }
+
+    return unmarshall(result.Items[0]) as DynamoDBAppointment;
   }
 }

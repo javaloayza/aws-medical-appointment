@@ -13,6 +13,9 @@ export interface IAppointmentRepository {
   
   // Update appointment status
   updateStatus(appointmentId: string, status: AppointmentStatus): Promise<void>;
+  
+  // Find appointment by schedule ID (to prevent duplicates)
+  findByScheduleId(scheduleId: number, countryISO: string): Promise<DynamoDBAppointment | PostgreSQLAppointment | null>;
 }
 
 // DynamoDB repository interface - manages appointment states
@@ -20,6 +23,7 @@ export interface IDynamoDBAppointmentRepository extends IAppointmentRepository {
   save(appointment: DynamoDBAppointment): Promise<void>;
   findByInsuredId(insuredId: string): Promise<DynamoDBAppointment[]>;
   findById(appointmentId: string): Promise<DynamoDBAppointment | null>;
+  findByScheduleId(scheduleId: number, countryISO: string): Promise<DynamoDBAppointment | null>;
 }
 
 // PostgreSQL repository interface - permanent storage by country
@@ -27,4 +31,5 @@ export interface IPostgreSQLAppointmentRepository extends IAppointmentRepository
   save(appointment: PostgreSQLAppointment): Promise<void>;
   findByInsuredId(insuredId: string): Promise<PostgreSQLAppointment[]>;
   findById(appointmentId: string): Promise<PostgreSQLAppointment | null>;
+  findByScheduleId(scheduleId: number, countryISO: string): Promise<PostgreSQLAppointment | null>;
 }

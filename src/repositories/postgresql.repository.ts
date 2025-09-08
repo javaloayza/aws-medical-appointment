@@ -77,6 +77,32 @@ export class PostgreSQLAppointmentRepository implements IPostgreSQLAppointmentRe
     await this.pool.query(query, [status, new Date(), appointmentId]);
   }
 
+  // Find appointment by schedule ID to prevent duplicates
+  async findByScheduleId(scheduleId: number, countryISO: string): Promise<PostgreSQLAppointment | null> {
+    const query = `
+      SELECT * FROM appointments 
+      WHERE schedule_id = $1 AND country_iso = $2 AND status IN ('pending', 'completed')
+      LIMIT 1
+    `;
+    
+    const result = await this.pool.query(query, [scheduleId, countryISO]);
+    
+    if (result.rows.length === 0) {
+      return null;
+    }
+    
+    const row = result.rows[0];
+    return {
+      appointment_id: row.appointment_id,
+      insured_id: row.insured_id,
+      schedule_id: row.schedule_id,
+      country_iso: row.country_iso,
+      status: row.status,
+      created_at: row.created_at,
+      updated_at: row.updated_at
+    };
+  }
+
   // Close database connections
   async close(): Promise<void> {
     await this.pool.end();

@@ -71,6 +71,14 @@ paths:
                   summary: Missing required fields
                   value:
                     message: "scheduleId is required"
+        '409':
+          description: Schedule slot already taken
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                message: "Schedule slot 100 is already taken"
         '500':
           description: Internal server error
           content:
@@ -189,7 +197,7 @@ components:
         scheduleId:
           type: integer
           minimum: 1
-          description: Schedule slot identifier
+          description: Medical slot identifier representing a specific combination of medical center, specialty, doctor, and date/time. Only one appointment can be created per scheduleId.
           example: 100
         countryISO:
           type: string
@@ -264,4 +272,3 @@ tags:
 `;
 
 export const openApiSpec = yaml.parse(yamlSpec);
-export type OpenAPISpec = typeof openApiSpec;

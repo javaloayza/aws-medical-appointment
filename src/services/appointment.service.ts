@@ -31,6 +31,20 @@ export class AppointmentService {
   // Step 1: Create appointment - save to DynamoDB and publish to SNS
   async createAppointment(request: AppointmentRequest): Promise<ServiceResponse<AppointmentResponse>> {
     try {
+      // Check if schedule slot is already taken
+      const dynamoRepo = this.repositoryFactory.createDynamoDBRepository();
+      const existingAppointment = await dynamoRepo.findByScheduleId(request.scheduleId, request.countryISO);
+      
+      if (existingAppointment) {
+        return {
+          success: false,
+          error: {
+            statusCode: 409,
+            message: `Schedule slot ${request.scheduleId} is already taken`
+          }
+        };
+      }
+
       const appointmentId = uuidv4();
       const now = new Date().toISOString();
 
@@ -45,7 +59,6 @@ export class AppointmentService {
       };
 
       // Save to DynamoDB
-      const dynamoRepo = this.repositoryFactory.createDynamoDBRepository();
       await dynamoRepo.save(dynamoAppointment);
 
       // Publish to SNS with country filter
